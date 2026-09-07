@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = 'https://fonjdnsapbjgcgbuvxpx.supabase.co'
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZvbmpkbnNhcGJqZ2NnYnV2eHB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg1MDk0OTIsImV4cCI6MjEwNDA4NTQ5Mn0.sfbmkPnTT3Dm5uUYfLiycYgsQQY5SLa1_RZCACqyBL0' // ※ご自身のAnon Keyに書き換えてください
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZvbmpkbnNhcGJqZ2NnYnV2eHB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg1MDk0OTIsImV4cCI6MjEwNDA4NTQ5Mn0.sfbmkPnTT3Dm5uUYfLiycYgsQQY5SLa1_RZCACqyBL0'
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 export default function Home() {
