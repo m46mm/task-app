@@ -1,85 +1,200 @@
-'use client';
-import { useState } from 'react';
+'use client'
+
+import { useState, useEffect } from 'react'
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = 'https://vriifilccnczqiuthqiw.supabase.co'
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZyaWlmaWxjY25jenFpdXRocWl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2NzUxNTUsImV4cCI6MjEwNDI1MTE1NX0.bGmSpCWXXhymvHb3psDA80P80cngVuPjXx3uuYLEPWA' // ※ご自身のAnon Keyに書き換えてください
+const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 export default function Home() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [passwordInput, setPasswordInput] = useState('');
-  const [tasks, setTasks] = useState([]);
-  const [newTask, setNewTask] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [passwordInput, setPasswordInput] = useState('')
+  const [tasks, setTasks] = useState([])
+  const [newTaskText, setNewTaskText] = useState('')
+  
+  const todayStr = new Date().toISOString().split('T')[0]
+  const [newTaskDate, setNewTaskDate] = useState(todayStr)
+  const [newTaskTime, setNewTaskTime] = useState('')
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchTasks()
+    }
+  }, [isAuthenticated])
+
+  const fetchTasks = async () => {
+    const { data, error } = await supabase
+      .from('tasks')
+      .select('*')
+      .order('id', { ascending: false })
+    
+    if (error) {
+      console.error('タスクの取得に失敗しました:', error)
+    } else {
+      setTasks(data || [])
+    }
+  }
 
   const handleLogin = (e) => {
-    e.preventDefault();
+    e.preventDefault()
     if (passwordInput === 'himitsu123') {
-      setIsAuthenticated(true);
+      setIsAuthenticated(true)
     } else {
-      alert('パスワードがちがうよ！');
+      alert('パスワードが違います')
     }
-  };
+  }
 
-  const addTask = (e) => {
-    e.preventDefault();
-    if (!newTask.trim()) return;
-    setTasks([...tasks, { id: Date.now(), text: newTask, done: false }]);
-    setNewTask('');
-  };
+  const addTask = async (e) => {
+    e.preventDefault()
+    if (!newTaskText.trim()) return
 
-  const toggleTask = (id) => {
-    setTasks(tasks.map(task => task.id === id ? { ...task, done: !task.done } : task));
-  };
+    const { error } = await supabase
+      .from('tasks')
+      .insert([{ 
+        text: newTaskText, 
+        done: false, 
+        task_date: newTaskDate || null,
+        task_time: newTaskTime || null
+      }])
 
-  const deleteTask = (id) => {
-    setTasks(tasks.filter(task => task.id !== id));
-  };
+    if (error) {
+      console.error('タスクの追加に失敗しました:', error)
+      alert('タスクの追加に失敗しました。')
+    } else {
+      setNewTaskText('')
+      setNewTaskTime('')
+      fetchTasks()
+    }
+  }
+
+  const toggleTask = async (id, currentDone) => {
+    const { error } = await supabase
+      .from('tasks')
+      .update({ done: !currentDone })
+      .eq('id', id)
+
+    if (error) {
+      console.error('タスクの更新に失敗しました:', error)
+    } else {
+      fetchTasks()
+    }
+  }
+
+  const deleteTask = async (id) => {
+    const { error } = await supabase
+      .from('tasks')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      console.error('タスクの削除に失敗しました:', error)
+    } else {
+      fetchTasks()
+    }
+  }
+
+  const addToGoogleCalendar = (task) => {
+    const title = encodeURIComponent(task.text)
+    const dateFormatted = task.task_date ? task.task_date.replace(/-/g, '') : todayStr.replace(/-/g, '')
+    
+    let url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}`
+    if (task.task_time) {
+      const timeCleaned = task.task_time.replace(/:/g, '') + '00'
+      url += `&dates=${dateFormatted}T${timeCleaned}/${dateFormatted}T${timeCleaned}`
+    } else {
+      url += `&dates=${dateFormatted}/${dateFormatted}`
+    }
+    window.open(url, '_blank')
+  }
 
   if (!isAuthenticated) {
     return (
-      <main style={{ display: 'flex', height: '100vh', justifyContent: 'center', alignItems: 'center', background: '#f0f2f5' }}>
-        <form onSubmit={handleLogin} style={{ background: 'white', padding: '30px', borderRadius: '10px', boxShadow: '0 4px 10px rgba(0,0,0,0.1)', textAlign: 'center' }}>
-          <h2>🔐 秘密のタスク管理</h2>
-          <p>パスワードを入力してね</p>
-          <input 
-            type="password" 
-            value={passwordInput} 
-            onChange={(e) => setPasswordInput(e.target.value)} 
-            placeholder="パスワード"
-            style={{ padding: '10px', fontSize: '16px', marginRight: '10px', borderRadius: '5px', border: '1px solid #ccc' }}
+      <main style={{ maxWidth: '400px', margin: '80px auto', padding: '20px', fontFamily: 'sans-serif' }}>
+        <h2>🔐 ログイン</h2>
+        <form onSubmit={handleLogin} style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+          <input
+            type="password"
+            placeholder="パスワードを入力..."
+            value={passwordInput}
+            onChange={(e) => setPasswordInput(e.target.value)}
+            style={{ flex: 1, padding: '8px', fontSize: '16px' }}
           />
-          <button type="submit" style={{ padding: '10px 20px', background: '#0070f3', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>入室</button>
+          <button type="submit" style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px' }}>
+            入室
+          </button>
         </form>
       </main>
-    );
+    )
   }
 
   return (
-    <main style={{ maxWidth: '600px', margin: '40px auto', padding: '20px', fontFamily: 'sans-serif' }}>
-      <h1>✨ マイ・タスク管理 ＆ カレンダー</h1>
+    <main style={{ maxWidth: '700px', margin: '40px auto', padding: '20px', fontFamily: 'sans-serif' }}>
+      <h1>✨ タスク管理</h1>
       
-      <form onSubmit={addTask} style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
-        <input 
-          type="text" 
-          value={newTask} 
-          onChange={(e) => setNewTask(e.target.value)} 
+      <form onSubmit={addTask} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '20px', background: '#f9fafb', padding: '16px', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+        <input
+          type="text"
           placeholder="新しいタスクを入力..."
-          style={{ flex: 1, padding: '10px', fontSize: '16px', borderRadius: '5px', border: '1px solid #ccc' }}
+          value={newTaskText}
+          onChange={(e) => setNewTaskText(e.target.value)}
+          style={{ padding: '10px', fontSize: '16px', border: '1px solid #ccc', borderRadius: '4px' }}
         />
-        <button type="submit" style={{ padding: '10px 20px', background: '#28a745', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>追加</button>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <input
+            type="date"
+            value={newTaskDate}
+            onChange={(e) => setNewTaskDate(e.target.value)}
+            style={{ padding: '8px', fontSize: '14px', border: '1px solid #ccc', borderRadius: '4px', flex: 1 }}
+          />
+          <input
+            type="time"
+            value={newTaskTime}
+            onChange={(e) => setNewTaskTime(e.target.value)}
+            style={{ padding: '8px', fontSize: '14px', border: '1px solid #ccc', borderRadius: '4px', flex: 1 }}
+          />
+        </div>
+        <button type="submit" style={{ padding: '10px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+          タスクを追加
+        </button>
       </form>
 
-      <h2>📝 今日のタスク</h2>
-      <ul style={{ listStyle: 'none', padding: 0 }}>
-        {tasks.length === 0 && <p style={{ color: '#888' }}>まだタスクはないよ！上の欄から追加してね。</p>}
-        {tasks.map(task => (
-          <li key={task.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '10px 15px', marginBottom: '8px', borderRadius: '5px', border: '1px solid #eee' }}>
-            <span 
-              onClick={() => toggleTask(task.id)} 
-              style={{ textDecoration: task.done ? 'line-through' : 'none', color: task.done ? '#aaa' : '#000', cursor: 'pointer', flex: 1 }}
-            >
-              {task.done ? '✅ ' : '🔲 '}{task.text}
-            </span>
-            <button onClick={() => deleteTask(task.id)} style={{ background: '#ff4d4f', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '3px', cursor: 'pointer' }}>削除</button>
+      <ul style={{ listStyle: 'none', padding: 0, marginTop: '20px' }}>
+        {tasks.map((task) => (
+          <li key={task.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', borderBottom: '1px solid #eee', background: '#fff', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
+              <input
+                type="checkbox"
+                checked={task.done}
+                onChange={() => toggleTask(task.id, task.done)}
+                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+              />
+              <div>
+                <span style={{ textDecoration: task.done ? 'line-through' : 'none', color: task.done ? '#888' : '#000', fontSize: '16px', display: 'block', marginBottom: '4px' }}>
+                  {task.text}
+                </span>
+                <span style={{ fontSize: '12px', color: '#666' }}>
+                  📅 {task.task_date || '日付未設定'} {task.task_time ? `🕒 ${task.task_time}` : ''}
+                </span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button
+                onClick={() => addToGoogleCalendar(task)}
+                style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
+              >
+                カレンダー
+              </button>
+              <button
+                onClick={() => deleteTask(task.id)}
+                style={{ background: '#dc2626', color: '#fff', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
+              >
+                削除
+              </button>
+            </div>
           </li>
         ))}
       </ul>
     </main>
-  );
+  )
 }
